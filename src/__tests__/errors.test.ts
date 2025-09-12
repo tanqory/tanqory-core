@@ -1,4 +1,4 @@
-import { TanqoryError } from '../errors';
+import { TanqoryError } from '@/errors';
 
 describe('TanqoryError', () => {
   describe('Constructor', () => {

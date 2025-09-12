@@ -58,6 +58,26 @@ const config: TanqoryConfig = {
 const client = new TanqoryApiClient(config);
 ```
 
+## Advanced Configuration
+
+### Per-Request Configuration
+
+```typescript
+// Override default settings for specific requests
+const response = await client.get('/products', {
+  timeout: 10000,          // Custom timeout
+  skipAuth: true,          // Skip authentication
+  skipCache: true,         // Skip caching
+  retries: 1,             // Custom retry count
+  headers: {
+    'X-Custom-Header': 'value'
+  },
+  params: {
+    page: 1,
+    limit: 50
+  }
+});
+
 ## Authentication
 
 ### Using API Key
@@ -119,6 +139,14 @@ const response = await client.put('/products/123', {
 const response = await client.delete('/products/123');
 ```
 
+### PATCH Request
+
+```typescript
+const response = await client.patch('/products/123', {
+  price: 79.99 // Only update specific fields
+});
+```
+
 ## Error Handling
 
 ```typescript
@@ -132,12 +160,37 @@ try {
     console.log('Message:', error.message);
     console.log('Code:', error.code);
     
+    // Comprehensive error type checking
     if (error.isAuthError()) {
-      // Handle authentication error
+      // Handle 401 Unauthorized
+      console.log('Authentication required');
+    } else if (error.isForbidden()) {
+      // Handle 403 Forbidden
+      console.log('Access denied');
+    } else if (error.isNotFound()) {
+      // Handle 404 Not Found
+      console.log('Resource not found');
     } else if (error.isRateLimited()) {
-      // Handle rate limiting
+      // Handle 429 Too Many Requests
+      console.log('Rate limit exceeded');
+    } else if (error.isRetryable()) {
+      // Handle 5xx Server Errors
+      console.log('Server error, can retry');
     }
   }
+}
+```
+
+### Create Error from Axios
+
+```typescript
+import { TanqoryError } from '@tanqory/core';
+
+try {
+  // Some axios operation
+} catch (axiosError) {
+  const tanqoryError = TanqoryError.fromAxiosError(axiosError);
+  throw tanqoryError;
 }
 ```
 
@@ -183,8 +236,87 @@ client.setLogLevel('error');
 ```typescript
 import { SecurityUtils } from '@tanqory/core';
 
-const signature = SecurityUtils.generateHmacSignature(data, secret);
-const isValid = SecurityUtils.verifyHmacSignature(data, signature, secret);
+// Generate HMAC signature
+const signature = SecurityUtils.generateHmacSignature(
+  'data-to-sign',
+  'secret-key',
+  'sha256' // Optional algorithm (default: sha256)
+);
+
+// Verify HMAC signature
+const isValid = SecurityUtils.verifyHmacSignature(
+  'data-to-verify',
+  'received-signature',
+  'secret-key'
+);
+```
+
+### Data Sanitization
+
+```typescript
+import { SecurityUtils } from '@tanqory/core';
+
+// Sanitize headers (removes sensitive data from logs)
+const safeHeaders = SecurityUtils.sanitizeHeaders({
+  'Authorization': 'Bearer secret-token',
+  'Content-Type': 'application/json'
+});
+// Result: { 'Authorization': '[REDACTED]', 'Content-Type': 'application/json' }
+
+// Sanitize URLs (removes sensitive query parameters)
+const safeUrl = SecurityUtils.sanitizeUrl(
+  'https://api.com/data?api_key=secret&user=john'
+);
+// Result: 'https://api.com/data?api_key=[REDACTED]&user=john'
+```
+
+## TypeScript Support
+
+Full TypeScript support with comprehensive type definitions:
+
+### Core Interfaces
+
+```typescript
+import { 
+  TanqoryConfig, 
+  RequestConfig, 
+  TokenData, 
+  ApiResponse 
+} from '@tanqory/core';
+
+// When developing within the library, you can use path aliases:
+// import { TanqoryConfig } from '@/types';
+// import { TanqoryApiClient } from '@/api-client';
+
+// Configuration interface
+const config: TanqoryConfig = {
+  baseURL: string;
+  timeout?: number;
+  retries?: number;
+  retryDelay?: number;
+  apiKey?: string;
+  tokenStorage?: 'memory' | 'env';
+  logLevel?: 'debug' | 'info' | 'warn' | 'error';
+  enableCaching?: boolean;
+  cacheTTL?: number;
+  hmacSecret?: string;
+};
+
+// Token data interface
+const tokenData: TokenData = {
+  accessToken: string;
+  refreshToken?: string;
+  expiresAt?: number;
+  tokenType?: string;
+};
+
+// API response interface
+const response: ApiResponse<MyDataType> = {
+  data: MyDataType;
+  status: number;
+  statusText: string;
+  headers: Record<string, string>;
+};
 ```
 
 ## Environment Variables
@@ -194,6 +326,111 @@ When using `tokenStorage: 'env'`, the following environment variables are used:
 - `TANQORY_ACCESS_TOKEN`: Access token
 - `TANQORY_REFRESH_TOKEN`: Refresh token
 - `TANQORY_TOKEN_EXPIRES_AT`: Token expiration timestamp
+
+## Performance & Compatibility
+
+### Performance Metrics
+- **Bundle Size**: < 50KB gzipped
+- **Load Time**: < 100ms initialization
+- **Memory Usage**: Minimal memory footprint
+
+### Node.js Support
+- **Node.js**: 16.x, 18.x, 20.x
+- **TypeScript**: 4.5+
+- **Dependencies**: Minimal (only Axios)
+
+## Real-World Examples
+
+### E-commerce Product Management
+
+```typescript
+import { TanqoryApiClient } from '@tanqory/core';
+
+const client = new TanqoryApiClient({
+  baseURL: 'https://api.tanqory.com',
+  apiKey: process.env.TANQORY_API_KEY,
+  enableCaching: true,
+  logLevel: 'info'
+});
+
+// Fetch product catalog with caching
+async function getProducts(page = 1, limit = 50) {
+  try {
+    const response = await client.get('/products', {
+      params: { page, limit, include: 'images,variants' }
+    });
+    return response.data;
+  } catch (error) {
+    if (error.isRateLimited()) {
+      // Wait and retry
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      return getProducts(page, limit);
+    }
+    throw error;
+  }
+}
+```
+
+### Webhook Signature Verification
+
+```typescript
+import { SecurityUtils } from '@tanqory/core';
+
+export function verifyWebhook(req, res, next) {
+  const signature = req.headers['x-tanqory-signature'];
+  const payload = JSON.stringify(req.body);
+  
+  const isValid = SecurityUtils.verifyHmacSignature(
+    payload,
+    signature,
+    process.env.WEBHOOK_SECRET
+  );
+  
+  if (!isValid) {
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
+  
+  next();
+}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### Authentication Errors (401)
+```typescript
+// Check token expiration
+if (!client.isTokenValid()) {
+  // Refresh token or re-authenticate
+  await refreshAuthToken();
+}
+```
+
+#### Rate Limiting (429)
+```typescript
+catch (error) {
+  if (error.isRateLimited()) {
+    const retryAfter = error.response?.headers['retry-after'] || 60;
+    await sleep(retryAfter * 1000);
+    // Retry the request
+  }
+}
+```
+
+#### Network Timeouts
+```typescript
+// Increase timeout for large requests
+const client = new TanqoryApiClient({
+  baseURL: 'https://api.tanqory.com',
+  timeout: 60000  // 60 seconds
+});
+```
+
+#### Bundle Size Issues
+- Use tree shaking: `import { TanqoryApiClient } from '@tanqory/core'`
+- Enable gzip compression on your server
+- Consider lazy loading for large applications
 
 ## License
 

@@ -1,7 +1,7 @@
-import { TanqoryApiClient } from '../api-client';
-import { TanqoryConfig, TokenData } from '../types';
+import { TanqoryApiClient } from '@/api-client';
+import { TanqoryConfig, TokenData } from '@/types';
 import axios from 'axios';
-import { TanqoryError } from '../errors';
+import { TanqoryError } from '@/errors';
 
 // Mock axios
 jest.mock('axios');

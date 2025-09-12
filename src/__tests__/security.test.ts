@@ -1,4 +1,4 @@
-import { SecurityUtils } from '../security';
+import { SecurityUtils } from '@/security';
 
 describe('SecurityUtils', () => {
   describe('HMAC Signature', () => {

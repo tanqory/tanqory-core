@@ -97,10 +97,10 @@ export class MemoryCache {
   }
 
   cleanup(): void {
-    for (const [key, entry] of this.cache.entries()) {
+    Array.from(this.cache.entries()).forEach(([key, entry]) => {
       if (this.isExpired(entry)) {
         this.cache.delete(key);
       }
-    }
+    });
   }
 }

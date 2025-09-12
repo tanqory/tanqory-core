@@ -1,5 +1,5 @@
-import { TanqoryLogger } from '../logger';
-import { LogLevel } from '../types';
+import { TanqoryLogger } from '@/logger';
+import { LogLevel } from '@/types';
 
 // Mock console methods
 const originalConsole = {

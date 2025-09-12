@@ -1,5 +1,5 @@
-import { TokenManager } from '../token-manager';
-import { TanqoryConfig, TokenData } from '../types';
+import { TokenManager } from '@/token-manager';
+import { TanqoryConfig, TokenData } from '@/types';
 
 describe('TokenManager', () => {
   const mockConfig: TanqoryConfig = {
