@@ -18,21 +18,17 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "resolveJsonModule": true,
-    "baseUrl": "./src",
+    "baseUrl": "./",
     "paths": {
-      "@/*": ["./*"],
-      "@/types": ["./types"],
-      "@/utils": ["./utils"],
-      "@/lib": ["./lib"]
+      "@/*": ["./src/*"]
     }
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "**/*.test.ts"
   ],
   "exclude": [
     "node_modules",
-    "dist",
-    "**/*.test.ts",
-    "**/*.spec.ts"
+    "dist"
   ]
 }
