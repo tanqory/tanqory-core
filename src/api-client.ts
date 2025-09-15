@@ -52,6 +52,7 @@ export class TanqoryApiClient {
       logLevel: 'info',
       enableCaching: false,
       cacheTTL: 300000,
+      enableTokenRefresh: false,
       ...config,
     };
 
@@ -140,8 +141,12 @@ export class TanqoryApiClient {
       async (error) => {
         const originalRequest = error.config;
 
-        // Handle 401 Unauthorized - attempt token refresh
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Handle 401 Unauthorized - attempt token refresh (only if enabled)
+        if (
+          error.response?.status === 401 &&
+          !originalRequest._retry &&
+          this.config.enableTokenRefresh
+        ) {
           originalRequest._retry = true;
 
           const tokenData = this.tokenManager.getToken();
@@ -222,12 +227,12 @@ export class TanqoryApiClient {
     requestFn: () => Promise<AxiosResponse<T>>,
     retries: number = this.config.retries || 3
   ): Promise<AxiosResponse<T>> {
-    let lastError: TanqoryError;
+    let lastError: TanqoryError | null = null;
 
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         return await requestFn();
-      } catch (error: any) {
+      } catch (error: unknown) {
         lastError = error instanceof TanqoryError ? error : TanqoryError.fromAxiosError(error);
 
         if (attempt === retries || !lastError.isRetryable()) {
@@ -235,8 +240,14 @@ export class TanqoryApiClient {
         }
 
         const delay = lastError.isRateLimited()
-          ? error.response?.headers['retry-after']
-            ? parseInt(error.response.headers['retry-after']) * 1000
+          ? (error as { response?: { headers: Record<string, string> } })?.response?.headers[
+              'retry-after'
+            ]
+            ? parseInt(
+                (error as { response: { headers: Record<string, string> } }).response.headers[
+                  'retry-after'
+                ]
+              ) * 1000
             : 60000
           : (this.config.retryDelay || 1000) * Math.pow(2, attempt);
 
@@ -250,10 +261,13 @@ export class TanqoryApiClient {
       }
     }
 
-    throw lastError!;
+    if (!lastError) {
+      throw new TanqoryError('Unknown error occurred', 500, 'UNKNOWN_ERROR');
+    }
+    throw lastError;
   }
 
-  async request<T = any>(requestConfig: RequestConfig): Promise<ApiResponse<T>> {
+  async request<T>(requestConfig: RequestConfig): Promise<ApiResponse<T>> {
     // Check cache first for GET requests
     if (this.config.enableCaching && !requestConfig.skipCache && requestConfig.method === 'GET') {
       const cachedData = this.cache.get<T>(
@@ -274,7 +288,7 @@ export class TanqoryApiClient {
 
     const axiosConfig: AxiosRequestConfig & { skipAuth?: boolean } = {
       url: requestConfig.url,
-      method: requestConfig.method.toLowerCase() as any,
+      method: requestConfig.method.toLowerCase() as 'get' | 'post' | 'put' | 'delete' | 'patch',
       headers: requestConfig.headers,
       params: requestConfig.params,
       data: requestConfig.data,
@@ -295,7 +309,7 @@ export class TanqoryApiClient {
     };
   }
 
-  async get<T = any>(url: string, config?: Partial<RequestConfig>): Promise<ApiResponse<T>> {
+  async get<T>(url: string, config?: Partial<RequestConfig>): Promise<ApiResponse<T>> {
     return this.request<T>({
       url,
       method: 'GET',
@@ -303,9 +317,9 @@ export class TanqoryApiClient {
     });
   }
 
-  async post<T = any>(
+  async post<T>(
     url: string,
-    data?: any,
+    data?: unknown,
     config?: Partial<RequestConfig>
   ): Promise<ApiResponse<T>> {
     return this.request<T>({
@@ -316,9 +330,9 @@ export class TanqoryApiClient {
     });
   }
 
-  async put<T = any>(
+  async put<T>(
     url: string,
-    data?: any,
+    data?: unknown,
     config?: Partial<RequestConfig>
   ): Promise<ApiResponse<T>> {
     return this.request<T>({
@@ -329,7 +343,7 @@ export class TanqoryApiClient {
     });
   }
 
-  async delete<T = any>(url: string, config?: Partial<RequestConfig>): Promise<ApiResponse<T>> {
+  async delete<T>(url: string, config?: Partial<RequestConfig>): Promise<ApiResponse<T>> {
     return this.request<T>({
       url,
       method: 'DELETE',
@@ -337,9 +351,9 @@ export class TanqoryApiClient {
     });
   }
 
-  async patch<T = any>(
+  async patch<T>(
     url: string,
-    data?: any,
+    data?: unknown,
     config?: Partial<RequestConfig>
   ): Promise<ApiResponse<T>> {
     return this.request<T>({

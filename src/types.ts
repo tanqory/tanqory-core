@@ -9,6 +9,7 @@ export interface TanqoryConfig {
   enableCaching?: boolean;
   cacheTTL?: number;
   hmacSecret?: string;
+  enableTokenRefresh?: boolean;
 }
 
 export interface TokenData {
@@ -18,7 +19,7 @@ export interface TokenData {
   tokenType?: string;
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   data: T;
   status: number;
   statusText: string;
@@ -29,7 +30,7 @@ export interface ApiError extends Error {
   status?: number;
   code?: string;
   response?: {
-    data: any;
+    data: unknown;
     status: number;
     statusText: string;
   };
@@ -39,15 +40,15 @@ export interface RequestConfig {
   url: string;
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   headers?: Record<string, string>;
-  params?: Record<string, any>;
-  data?: any;
+  params?: Record<string, unknown>;
+  data?: unknown;
   timeout?: number;
   skipAuth?: boolean;
   skipCache?: boolean;
   retries?: number;
 }
 
-export interface CacheEntry<T = any> {
+export interface CacheEntry<T = unknown> {
   data: T;
   timestamp: number;
   ttl: number;
@@ -57,8 +58,8 @@ export interface CacheEntry<T = any> {
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 export interface Logger {
-  debug(message: string, ...args: any[]): void;
-  info(message: string, ...args: any[]): void;
-  warn(message: string, ...args: any[]): void;
-  error(message: string, ...args: any[]): void;
+  debug(message: string, ...args: unknown[]): void;
+  info(message: string, ...args: unknown[]): void;
+  warn(message: string, ...args: unknown[]): void;
+  error(message: string, ...args: unknown[]): void;
 }

@@ -59,11 +59,12 @@ This is the **@tanqory/core** library - an essential SDK for Tanqory's e-commerc
 
 All components are configured through the `TanqoryConfig` interface:
 - `baseURL` - API endpoint base URL
-- `apiKey` - API key authentication (alternative to tokens)  
+- `apiKey` - API key authentication (alternative to tokens)
 - `timeout` - Request timeout (default: 30000ms)
 - `retries` - Max retry attempts (default: 3)
 - `tokenStorage` - Token storage method ('memory' | 'env')
-- `enableCaching` - Enable response caching
+- `enableCaching` - Enable response caching (default: false)
+- `enableTokenRefresh` - Enable automatic token refresh on 401 errors (default: false)
 - `logLevel` - Logging verbosity ('debug' | 'info' | 'warn' | 'error')
 - `hmacSecret` - HMAC verification secret
 

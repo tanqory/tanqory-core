@@ -4,12 +4,17 @@ export class TanqoryError extends Error implements ApiError {
   public status?: number;
   public code?: string;
   public response?: {
-    data: any;
+    data: unknown;
     status: number;
     statusText: string;
   };
 
-  constructor(message: string, status?: number, code?: string, response?: any) {
+  constructor(
+    message: string,
+    status?: number,
+    code?: string,
+    response?: { data: unknown; status: number; statusText: string }
+  ) {
     super(message);
     this.name = 'TanqoryError';
     this.status = status;
@@ -17,23 +22,34 @@ export class TanqoryError extends Error implements ApiError {
     this.response = response;
   }
 
-  static fromAxiosError(error: any): TanqoryError {
-    if (error.response) {
+  static fromAxiosError(error: unknown): TanqoryError {
+    const axiosError = error as {
+      response?: {
+        data?: { message?: string; code?: string };
+        status: number;
+        statusText: string;
+      };
+      request?: unknown;
+      message?: string;
+      code?: string;
+    };
+
+    if (axiosError.response) {
       return new TanqoryError(
-        error.response.data?.message || error.message || 'Request failed',
-        error.response.status,
-        error.response.data?.code || error.code,
+        axiosError.response.data?.message || axiosError.message || 'Request failed',
+        axiosError.response.status,
+        axiosError.response.data?.code || axiosError.code,
         {
-          data: error.response.data,
-          status: error.response.status,
-          statusText: error.response.statusText,
+          data: axiosError.response.data,
+          status: axiosError.response.status,
+          statusText: axiosError.response.statusText,
         }
       );
-    } else if (error.request) {
+    } else if (axiosError.request) {
       return new TanqoryError('No response received from server', undefined, 'NETWORK_ERROR');
     } else {
       return new TanqoryError(
-        error.message || 'Request setup failed',
+        axiosError.message || 'Request setup failed',
         undefined,
         'REQUEST_SETUP_ERROR'
       );
@@ -41,7 +57,9 @@ export class TanqoryError extends Error implements ApiError {
   }
 
   isRetryable(): boolean {
-    if (!this.status) return false;
+    if (!this.status) {
+      return false;
+    }
 
     // Retry on server errors (5xx) and rate limiting (429)
     return this.status >= 500 || this.status === 429;

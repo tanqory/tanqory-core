@@ -34,7 +34,7 @@ export class MemoryCache {
     this.defaultTTL = defaultTTL;
   }
 
-  private generateKey(url: string, method: string, params?: Record<string, any>): string {
+  private generateKey(url: string, method: string, params?: Record<string, unknown>): string {
     const paramString = params ? JSON.stringify(params) : '';
     return `${method}:${url}:${paramString}`;
   }
@@ -47,7 +47,7 @@ export class MemoryCache {
     url: string,
     method: string,
     data: T,
-    params?: Record<string, any>,
+    params?: Record<string, unknown>,
     ttl?: number,
     etag?: string
   ): void {
@@ -62,7 +62,7 @@ export class MemoryCache {
     this.cache.set(key, entry);
   }
 
-  get<T>(url: string, method: string, params?: Record<string, any>): T | null {
+  get<T>(url: string, method: string, params?: Record<string, unknown>): T | null {
     const key = this.generateKey(url, method, params);
     const entry = this.cache.get(key);
 
@@ -76,7 +76,7 @@ export class MemoryCache {
     return entry.data as T;
   }
 
-  getEtag(url: string, method: string, params?: Record<string, any>): string | undefined {
+  getEtag(url: string, method: string, params?: Record<string, unknown>): string | undefined {
     const key = this.generateKey(url, method, params);
     const entry = this.cache.get(key);
 
@@ -87,7 +87,7 @@ export class MemoryCache {
     return entry.etag;
   }
 
-  invalidate(url: string, method: string, params?: Record<string, any>): void {
+  invalidate(url: string, method: string, params?: Record<string, unknown>): void {
     const key = this.generateKey(url, method, params);
     this.cache.delete(key);
   }
