@@ -4,7 +4,7 @@ import axios, {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from 'axios';
-import { TanqoryConfig, RequestConfig, ApiResponse, TokenData } from './types';
+import { TanqoryConfig, RequestConfig, ApiResponse, TokenData, TokenSession } from './types';
 import { TanqoryLogger } from './logger';
 import { TokenManager } from './token-manager';
 import { MemoryCache } from './cache';
@@ -53,8 +53,18 @@ export class TanqoryApiClient {
       enableCaching: false,
       cacheTTL: 300000,
       enableTokenRefresh: false,
+      autoRetry: true,
+      autoRefreshToken: false,
       ...config,
     };
+
+    // Handle alias configuration options
+    if (config.autoRetry !== undefined) {
+      this.config.retries = config.autoRetry ? (config.retries || 3) : 0;
+    }
+    if (config.autoRefreshToken !== undefined) {
+      this.config.enableTokenRefresh = config.autoRefreshToken;
+    }
 
     this.logger = new TanqoryLogger(this.config.logLevel);
     this.tokenManager = new TokenManager(this.config);
@@ -378,5 +388,18 @@ export class TanqoryApiClient {
 
   setLogLevel(level: 'debug' | 'info' | 'warn' | 'error'): void {
     this.logger.setLevel(level);
+  }
+
+  bindCustomerToken(session: TokenSession): void {
+    this.tokenManager.setToken({
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+      tokenType: session.tokenType ?? 'Bearer',
+      expiresAt: session.expiresAt ?? Date.now() + 55 * 60 * 1000,
+    });
+  }
+
+  isTokenValid(): boolean {
+    return this.tokenManager.isTokenValid();
   }
 }

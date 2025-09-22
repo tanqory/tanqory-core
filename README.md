@@ -24,11 +24,15 @@ yarn add @tanqory/core
 ## Quick Start
 
 ```typescript
-import { TanqoryApiClient } from '@tanqory/core';
+import { createClient } from '@tanqory/core';
+// or: import { TanqoryApiClient } from '@tanqory/core';
 
-const client = new TanqoryApiClient({
+const client = createClient({
   baseURL: 'https://api.tanqory.com',
   apiKey: 'your-api-key',
+  storeId: 'your-store-id',
+  autoRetry: true,
+  autoRefreshToken: true,
   logLevel: 'info'
 });
 
@@ -40,12 +44,15 @@ console.log(response.data);
 ## Configuration
 
 ```typescript
-import { TanqoryApiClient, TanqoryConfig } from '@tanqory/core';
+import { createClient, TanqoryConfig } from '@tanqory/core';
 
 const config: TanqoryConfig = {
   baseURL: 'https://api.tanqory.com',
   apiKey: 'your-api-key',
+  storeId: 'your-store-id',
   timeout: 30000,
+  autoRetry: true, // alias for retries > 0
+  autoRefreshToken: true, // alias for enableTokenRefresh
   retries: 3,
   retryDelay: 1000,
   tokenStorage: 'memory', // or 'env'
@@ -55,7 +62,7 @@ const config: TanqoryConfig = {
   hmacSecret: 'your-hmac-secret'
 };
 
-const client = new TanqoryApiClient(config);
+const client = createClient(config);
 ```
 
 ## Advanced Configuration
@@ -83,7 +90,7 @@ const response = await client.get('/products', {
 ### Using API Key
 
 ```typescript
-const client = new TanqoryApiClient({
+const client = createClient({
   baseURL: 'https://api.tanqory.com',
   apiKey: 'your-api-key'
 });
@@ -92,8 +99,9 @@ const client = new TanqoryApiClient({
 ### Using JWT Tokens
 
 ```typescript
-const client = new TanqoryApiClient({
-  baseURL: 'https://api.tanqory.com'
+const client = createClient({
+  baseURL: 'https://api.tanqory.com',
+  autoRefreshToken: true
 });
 
 // Set token data
@@ -103,6 +111,19 @@ client.setToken({
   expiresAt: 1234567890,
   tokenType: 'Bearer'
 });
+
+// Or use the convenience method for customer sessions
+client.bindCustomerToken({
+  accessToken: 'your-access-token',
+  refreshToken: 'your-refresh-token',
+  expiresAt: 1234567890,
+  tokenType: 'Bearer'
+});
+
+// Check token validity
+if (!client.isTokenValid()) {
+  // Handle token refresh or re-authentication
+}
 ```
 
 ## API Methods
@@ -159,7 +180,7 @@ try {
     console.log('Status:', error.status);
     console.log('Message:', error.message);
     console.log('Code:', error.code);
-    
+
     // Comprehensive error type checking
     if (error.isAuthError()) {
       // Handle 401 Unauthorized
@@ -199,7 +220,7 @@ try {
 Enable caching for improved performance:
 
 ```typescript
-const client = new TanqoryApiClient({
+const client = createClient({
   baseURL: 'https://api.tanqory.com',
   enableCaching: true,
   cacheTTL: 600000 // 10 minutes
@@ -220,7 +241,7 @@ client.clearCache();
 Configure logging levels:
 
 ```typescript
-const client = new TanqoryApiClient({
+const client = createClient({
   baseURL: 'https://api.tanqory.com',
   logLevel: 'debug' // 'debug', 'info', 'warn', 'error'
 });
@@ -277,20 +298,19 @@ Full TypeScript support with comprehensive type definitions:
 ### Core Interfaces
 
 ```typescript
-import { 
-  TanqoryConfig, 
-  RequestConfig, 
-  TokenData, 
-  ApiResponse 
+import {
+  createClient,
+  TanqoryConfig,
+  RequestConfig,
+  TokenData,
+  TokenSession,
+  ApiResponse
 } from '@tanqory/core';
-
-// When developing within the library, you can use path aliases:
-// import { TanqoryConfig } from '@/types';
-// import { TanqoryApiClient } from '@/api-client';
 
 // Configuration interface
 const config: TanqoryConfig = {
   baseURL: string;
+  storeId?: string;
   timeout?: number;
   retries?: number;
   retryDelay?: number;
@@ -300,6 +320,9 @@ const config: TanqoryConfig = {
   enableCaching?: boolean;
   cacheTTL?: number;
   hmacSecret?: string;
+  enableTokenRefresh?: boolean;
+  autoRetry?: boolean; // alias for retries > 0
+  autoRefreshToken?: boolean; // alias for enableTokenRefresh
 };
 
 // Token data interface
@@ -308,6 +331,14 @@ const tokenData: TokenData = {
   refreshToken?: string;
   expiresAt?: number;
   tokenType?: string;
+};
+
+// Token session interface (for bindCustomerToken)
+const session: TokenSession = {
+  accessToken: string;
+  refreshToken?: string;
+  expiresAt?: number;
+  tokenType?: 'Bearer';
 };
 
 // API response interface
@@ -344,11 +375,13 @@ When using `tokenStorage: 'env'`, the following environment variables are used:
 ### E-commerce Product Management
 
 ```typescript
-import { TanqoryApiClient } from '@tanqory/core';
+import { createClient } from '@tanqory/core';
 
-const client = new TanqoryApiClient({
+const client = createClient({
   baseURL: 'https://api.tanqory.com',
   apiKey: process.env.TANQORY_API_KEY,
+  storeId: process.env.TANQORY_STORE_ID,
+  autoRetry: true,
   enableCaching: true,
   logLevel: 'info'
 });
@@ -379,17 +412,17 @@ import { SecurityUtils } from '@tanqory/core';
 export function verifyWebhook(req, res, next) {
   const signature = req.headers['x-tanqory-signature'];
   const payload = JSON.stringify(req.body);
-  
+
   const isValid = SecurityUtils.verifyHmacSignature(
     payload,
     signature,
     process.env.WEBHOOK_SECRET
   );
-  
+
   if (!isValid) {
     return res.status(401).json({ error: 'Invalid signature' });
   }
-  
+
   next();
 }
 ```
@@ -421,14 +454,14 @@ catch (error) {
 #### Network Timeouts
 ```typescript
 // Increase timeout for large requests
-const client = new TanqoryApiClient({
+const client = createClient({
   baseURL: 'https://api.tanqory.com',
   timeout: 60000  // 60 seconds
 });
 ```
 
 #### Bundle Size Issues
-- Use tree shaking: `import { TanqoryApiClient } from '@tanqory/core'`
+- Use tree shaking: `import { createClient } from '@tanqory/core'`
 - Enable gzip compression on your server
 - Consider lazy loading for large applications
 

@@ -1,5 +1,6 @@
 export interface TanqoryConfig {
   baseURL: string;
+  storeId?: string;
   timeout?: number;
   retries?: number;
   retryDelay?: number;
@@ -10,6 +11,8 @@ export interface TanqoryConfig {
   cacheTTL?: number;
   hmacSecret?: string;
   enableTokenRefresh?: boolean;
+  autoRetry?: boolean;
+  autoRefreshToken?: boolean;
 }
 
 export interface TokenData {
@@ -17,6 +20,13 @@ export interface TokenData {
   refreshToken?: string;
   expiresAt?: number;
   tokenType?: string;
+}
+
+export interface TokenSession {
+  accessToken: string;
+  refreshToken?: string;
+  expiresAt?: number;
+  tokenType?: 'Bearer';
 }
 
 export interface ApiResponse<T = unknown> {
